@@ -1,0 +1,28 @@
+{
+  "name": "hyperion/hyperion-core",
+  "type": "wordpress-muplugin",
+  "description": "Core of hyperion",
+  "authors": [
+    {
+      "name": "Grégory COLLIN",
+      "email": "gregory@d4rk0s.net"
+    }
+  ],
+  "require": {
+    "php" : ">8",
+    "symfony/dependency-injection": "^5.2",
+    "league/container": "^3.3",
+    "digilist/dependency-graph": "^0.3.0",
+    "monolog/monolog": "^2.3",
+    "ext-apcu": "*"
+  },
+  "autoload": {
+    "psr-4": {
+      "Hyperion\\": "src/"
+    }
+  },
+  "require-dev": {
+    "roave/security-advisories": "dev-latest",
+    "phpmd/phpmd": "^2.9"
+  }
+}
