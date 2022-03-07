@@ -17,7 +17,7 @@ class ClassTreeMapper
     private const TREE_CACHE_KEY = 'classtreemapper_tree_apcu_cache';
     private array $tree = [];
     /** @var ClassTreeMapperPathModel[] */
-    private array $classTreeMapperPaths = [];
+    private static array $classTreeMapperPaths = [];
 
     /**
      * Rajoute un namespace à prendre en compte pour l'arbre
@@ -25,13 +25,13 @@ class ClassTreeMapper
      * @param ClassTreeMapperPathModel $classTreeMapperPathModel
      * @throws \Exception
      */
-    public function addClassNamespace(ClassTreeMapperPathModel $classTreeMapperPathModel): void
+    public static function addClassNamespace(ClassTreeMapperPathModel $classTreeMapperPathModel): void
     {
         $id = md5(serialize($classTreeMapperPathModel));
-        if (array_key_exists($id, $this->classTreeMapperPaths)) {
+        if (array_key_exists($id, self::$classTreeMapperPaths)) {
             throw new \Exception("Ce classTreeMapperPath(".$classTreeMapperPathModel->getNamespace().") a déjà été ajouté.");
         }
-        $this->classTreeMapperPaths[$id] = $classTreeMapperPathModel;
+        self::$classTreeMapperPaths[$id] = $classTreeMapperPathModel;
     }
 
     /**
@@ -42,45 +42,29 @@ class ClassTreeMapper
      */
     public function getClassesFromNamespace(string $namespace): array
     {
-        if (is_null($this->tree)) {
+        if (empty($this->tree)) {
             $this->launchBuild();
         }
 
-        $nsSlashIndex = strpos(strrev($namespace), "\\");
-
-        // +1 to remove trailingslash
-        if ($nsSlashIndex > 0) {
-            $nsSlashIndex++;
-        }
-
-        $rootNs = substr($namespace, 0, strlen($namespace) - $nsSlashIndex);
-
-        if (!isset($this->tree[$rootNs])) {
-            return [];
-        }
-
-        $offset = $nsSlashIndex > 0 ? strlen($namespace) - $nsSlashIndex + 1 : strlen($namespace) - $nsSlashIndex;
-
-        if (!array_key_exists($rootNs, $this->tree) || !array_key_exists(substr($namespace, $offset), $this->tree[$rootNs])) {
-            return [];
-        }
-
-        return $this->tree[$rootNs][substr($namespace, $offset)];
+        return $this->tree[$namespace] ?: [];
     }
 
     private function launchBuild() : void
     {
+        /*
         if (apcu_exists(self::TREE_CACHE_KEY)) {
             $this->tree = apcu_fetch(self::TREE_CACHE_KEY);
             return;
-        }
+        }*/
+
 
         $trees = [];
-        foreach ($this->classTreeMapperPaths as $classTreeMapperPath) {
+        foreach (self::$classTreeMapperPaths as $classTreeMapperPath) {
             $trees[] = $this->buildClassTreeMap($classTreeMapperPath->getNamespace(), $classTreeMapperPath->getBasePath());
         }
 
         $this->tree = array_merge([], ...$trees);
+
         apcu_add(self::TREE_CACHE_KEY, $this->tree);
     }
 

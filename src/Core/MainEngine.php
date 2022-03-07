@@ -4,9 +4,11 @@ namespace Hyperion\Core;
 
 use Digilist\DependencyGraph\DependencyGraph;
 use Digilist\DependencyGraph\DependencyNode;
+use Hyperion\Enum\PartType;
 use Hyperion\Hyperion;
 use Hyperion\Interfaces\EnginePlugable;
 use Hyperion\Model\AutoloadedComponent;
+use Hyperion\Model\ClassTreeMapperPathModel;
 use Hyperion\Model\Module;
 use League\Container\Container;
 
@@ -68,8 +70,8 @@ class MainEngine
     public function fullyLoadContainer(ClassTreeMapper $classTreeMapper) : void
     {
         array_map(
-            function (DependencyNode $dependencyNode) use ($classTreeMapper) {
-                $this->addToContainer($dependencyNode->getElement(), $classTreeMapper);
+            function (EnginePlugable $elm) use ($classTreeMapper) {
+                $this->addToContainer($elm, $classTreeMapper);
             },
             $this->resolveModulesLoadingOrder()
         );
@@ -88,13 +90,12 @@ class MainEngine
             $definition = $this->container->add($enginePlugable->getAlias(), $enginePlugable->getSrc(), $enginePlugable->isShared());
         } elseif ($enginePlugable instanceof AutoloadedComponent) {
             $namespaceClasses = $classTreeMapper->getClassesFromNamespace($enginePlugable->getNamespace());
-
             if (empty($namespaceClasses)) {
                 return;
             }
 
             foreach ($namespaceClasses as $namespace) {
-                $definition = $this->container->add($namespace, $namespace, $enginePlugable->isShared());
+                $definition = $this->container->add($namespace, $namespace, true);
                 $definition->addTag($enginePlugable->getTag());
             }
         }
@@ -114,11 +115,12 @@ class MainEngine
     private function resolveModulesLoadingOrder() : array
     {
         $graph = new DependencyGraph();
+        /** @var \Hyperion\Interfaces\EnginePlugable[] $dependencyNodes */
         $dependencyNodes = [];
 
         // Création des dependencyNodes sur les modules
         foreach ($this->modules as $alias => $moduleInstance) {
-            $dependencyNodes[ $alias ] = new DependencyNode($moduleInstance, $alias);
+            $dependencyNodes[ $alias ][] = new DependencyNode($moduleInstance, $alias);
         }
 
         // Création des dependencyNodes sur les autoloadedComponents
@@ -128,29 +130,16 @@ class MainEngine
             $dependencyNodes[ $tag ][] = new DependencyNode($autoloadedComponentInstance, $tag);
         }
 
-        // On rajoute les relations entre eux
-        // Pour les modules...
-        foreach ($this->modules as $alias => $moduleInstance) {
-            foreach ($moduleInstance->getParts() as $part) {
-                if (!array_key_exists($part->getName(), $dependencyNodes)) {
-                    throw new \Exception("Erreur lors de la mise en place de la relation : " . $part->getName() . " : Element non existant");
+        foreach ($dependencyNodes as $elements) {
+            /** @var DependencyNode $dependencyNode */
+            foreach ($elements as $dependencyNode) {
+                /** @var \Hyperion\Model\Part $part */
+                foreach ($dependencyNode->getElement()->getParts() as $part) {
+                    foreach ($dependencyNodes[$part->getName()] as $tagDependencyNode) {
+                        $dependencyNode->dependsOn($tagDependencyNode);
+                    }
                 }
-                $graph->addDependency($dependencyNodes[$alias], $dependencyNodes[$part->getName()]);
-            }
-        }
-
-        // Pour les classes en autoload, on prend le parti que pour un même tag on doit avoir les même dépendances.
-        // Ainsi on prend la première occurence du tableau sous la clef tag puisque normalement elles sont toutes les memes.
-        foreach ($dependencyNodes as $autoloadedComponents) {
-            /** @var AutoloadedComponent $autoloadedComponent */
-            $firstAutoloadedComponent = current($autoloadedComponents);
-            foreach ($firstAutoloadedComponent->getParts() as $part) {
-                if (!array_key_exists($part->getName(), $dependencyNodes)) {
-                    throw new \Exception("Erreur lors de la mise en place de la relation : " . $part->getName() . " : Element non existant");
-                }
-                foreach ($autoloadedComponents as $autoloadedComponent) {
-                    $graph->addDependency($dependencyNodes[$autoloadedComponent->getAlias()], $dependencyNodes[$part->getName()]);
-                }
+                $graph->addNode($dependencyNode);
             }
         }
 
