@@ -51,11 +51,10 @@ class ClassTreeMapper
 
     private function launchBuild() : void
     {
-        /*
         if (apcu_exists(self::TREE_CACHE_KEY)) {
             $this->tree = apcu_fetch(self::TREE_CACHE_KEY);
             return;
-        }*/
+        }
 
 
         $trees = [];
