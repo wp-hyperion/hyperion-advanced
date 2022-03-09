@@ -2,38 +2,32 @@
 
 namespace Hyperion;
 
-use Hyperion\Core\ClassTreeMapper;
-use Hyperion\Core\MainEngine;
-use Monolog\Handler\StreamHandler;
-use Monolog\Logger;
+use Hyperion\Doctrine\Service\DoctrineService;
+use Hyperion\Loader\Collection\RegisteredModuleCollection;
+use Hyperion\Loader\HyperionLoader;
 
 class Hyperion
 {
-    public const ADD_MODULE_EVENT = 'addModule';
-    public const ADD_COMPONENT_EVENT = 'addComponent';
-    public const ADD_CLASSTREEMAPPERPATH_EVENT = 'add_classtreemapperpath_event';
-    public const LOAD_CONTAINER_EVENT = 'loadContainer';
+    private DoctrineService $doctrineService;
 
-    private static Logger $monolog;
-
-    public static function poweringUp()
+    public function __construct(DoctrineService $doctrineService)
     {
-        self::$monolog = new Logger('logbook');
-        self::$monolog->pushHandler(new StreamHandler(__DIR__."/../logbooks/app.log", Logger::DEBUG));
+        $this->doctrineService = $doctrineService;
+    }
+
+    public static function init()
+    {
+        add_action(HyperionLoader::REGISTER_HYPERION_MODULE, function (RegisteredModuleCollection $registeredModuleCollection) {
+            $registeredModuleCollection->addModule(__NAMESPACE__);
+        }, 1);
     }
 
     public static function shuttingDown()
     {
-
     }
 
-    public static function ignition()
+    public function ignition()
     {
-        $engineModules = new MainEngine();
-        $classTreeMapper = new ClassTreeMapper();
-        do_action(self::ADD_MODULE_EVENT, $engineModules);
-        do_action(self::ADD_COMPONENT_EVENT, $engineModules);
-        do_action(self::ADD_CLASSTREEMAPPERPATH_EVENT, $classTreeMapper);
-        do_action(self::LOAD_CONTAINER_EVENT, $classTreeMapper);
+        die('ok');
     }
 }
