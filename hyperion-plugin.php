@@ -25,6 +25,7 @@ if ( ! defined('WPINC' ) ) {
     die;
 }
 
-register_activation_hook(__FILE__, [\Hyperion\Hyperion::class, 'poweringUp']);
-register_deactivation_hook(__FILE__, [\Hyperion\Hyperion::class, 'shuttingDown']);
-add_action( 'init', [\Hyperion\Hyperion::class, 'ignition'] );
+add_action('init', [\Hyperion\Hyperion::class, 'init']);
+add_action(\Hyperion\Loader\HyperionLoader::HYPERION_CONTAINER_READY, function (\Hyperion\Loader\Service\ContainerEngine $containerEngine) {
+    $containerEngine->getContainer()->get(\Hyperion\Hyperion::class)->ignition();
+});
